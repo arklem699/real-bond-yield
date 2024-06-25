@@ -17,11 +17,15 @@ def authorize_google_sheets(credentials_file: str, spreadsheet_url: str) -> pygs
     ws.clear()    # Очищаем лист
 
     # Обновляем заголовки таблицы
-    headers = ['Тикер', 'Название', 'Номинал', 'Цена', 'НКД', 'Комиссия', 'Сумма купонов', 'Дата погашения']
+    headers = [
+        'Тикер', 'Название', 'Номинал', 'Цена', 'НКД', 'Комиссия', 'Сумма купонов', 'Дата погашения', 'Доход, руб', \
+        'Доход, %', 'Доход, %/год', 'Доход после налога, руб', 'Доход после налога, %', 'Доход после налога, %/год', \
+        'Только для квалов'
+    ]
     ws.update_values('A1', [headers])
     
     # Делаем заголовки жирными
-    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1']:
+    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1']:
         ws.cell(cell).set_text_format('bold', True)
 
     return ws
@@ -33,14 +37,10 @@ def update_spreadsheet_values(data: list, ws: pygsheets.Worksheet, row_index: in
     """
     values = [
         [
-            entry['ticker'], 
-            entry['name'], 
-            entry['nominal'], 
-            entry['price'], 
-            entry['aci'],
-            entry['fee'],
-            entry['sum_coupons'],
-            entry['maturity_date']
+            entry['ticker'], entry['name'], entry['nominal'], entry['price'], entry['aci'], entry['fee'], \
+            entry['sum_coupons'], entry['maturity_date'], entry['profit_rub'], entry['profit_per'], \
+            entry['profit_per_year'], entry['profit_rub_after_tax'], entry['profit_per_after_tax'], \
+            entry['profit_per_year_after_tax'], entry['qual']
         ] for entry in data]
     
     ws.update_values(f'A{row_index+2}', values=values)
@@ -81,6 +81,30 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
     for coupon in coupons:
         sum_coupons += coupon.pay_one_bond.units + int(str(coupon.pay_one_bond.nano)[:2]) / 100
 
+    # Доходность в рублях
+    profit_rub = round((nominal - price - aci - fee + sum_coupons), 2)
+    if profit_rub < 0:  # Отсекаем облигации с неправильным отображением данных в БД Т-Инвестиций
+        return None
+
+    # Доходность в процентах
+    profit_per = format((profit_rub / (price + aci + fee)), '.2%')
+
+    # Доходность в процентах годовых
+    days_left = (bond.maturity_date - datetime.datetime.now(datetime.timezone.utc)).days    # Дней до погашения
+    profit_per_year = format((profit_rub / (price + aci + fee) / days_left * 365), '.2%')
+
+    # Доходность в рублях после налога
+    profit_rub_after_tax = round((0.87 * profit_rub), 2)
+
+    # Доходность в процентах после налога
+    profit_per_after_tax = format((0.87 * (profit_rub / (price + aci + fee))), '.2%')
+
+    # Доходность в процентах годовых после налога
+    profit_per_year_after_tax = format((0.87 * (profit_rub / (price + aci + fee) / days_left * 365)), '.2%')
+
+    # Доступность только квалифицированным инвесторам
+    qual = 'Да' if bond.for_qual_investor_flag else 'Нет'
+
     # Результирующий словарь
     bond_data = {
         'ticker': bond.ticker,                                      # Тикер
@@ -90,7 +114,14 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
         'aci': aci,
         'fee': fee,
         'sum_coupons': sum_coupons,
-        'maturity_date': bond.maturity_date.strftime('%d.%m.%Y')    # Дата погашения
+        'maturity_date': bond.maturity_date.strftime('%d.%m.%Y'),   # Дата погашения
+        'profit_rub': profit_rub,
+        'profit_per': profit_per,
+        'profit_per_year': profit_per_year,
+        'profit_rub_after_tax': profit_rub_after_tax,
+        'profit_per_after_tax': profit_per_after_tax,
+        'profit_per_year_after_tax': profit_per_year_after_tax,
+        'qual': qual
     }
 
     return bond_data
