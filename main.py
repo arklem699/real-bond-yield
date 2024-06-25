@@ -50,10 +50,14 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
     """
     Получает данные об облигации
     """
-    # Берём только рублёвые и не бессрочные облигации
-    if bond.currency != 'rub' or bond.perpetual_flag:
+    # Берём только рублёвые и не бессрочные облигации, и не флоатеры
+    if bond.currency != 'rub' or bond.perpetual_flag or bond.floating_coupon_flag:
         return None
 
+    # Если срок погашения истёк, но облигация ещё есть в БД, то не берём её
+    if bond.maturity_date == datetime.datetime(1970, 1, 1, 0, 0, tzinfo=datetime.timezone.utc):
+        return None
+    
     # Номинал
     nominal = bond.nominal.units + int(str(bond.nominal.nano)[:2]) / 100    
 
@@ -67,14 +71,15 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
     aci = bond.aci_value.units + int(str(bond.aci_value.nano)[:2]) / 100 
 
     # Комиссия 0,3%   
-    fee = round(((price + aci) * 0.003), 2)                                          
+    fee = round(((price + aci) * 0.003), 2)                                       
 
     # Получаем купоны для облигации
     coupons = client.instruments.get_bond_coupons(figi=bond.figi, from_=datetime.datetime.now(), to=bond.maturity_date).events
 
     # Считаем сумму купонов
+    sum_coupons = 0
     for coupon in coupons:
-        sum_coupons = sum(coupon.pay_one_bond.units + int(str(coupon.pay_one_bond.nano)[:2]) / 100)
+        sum_coupons += coupon.pay_one_bond.units + int(str(coupon.pay_one_bond.nano)[:2]) / 100
 
     # Результирующий словарь
     bond_data = {
