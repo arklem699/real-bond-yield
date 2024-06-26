@@ -17,17 +17,27 @@ def authorize_google_sheets(credentials_file: str, spreadsheet_url: str) -> pygs
     sh = gc.open_by_url(spreadsheet_url)
     ws = sh[0]    # Берем первый лист
     ws.clear()    # Очищаем лист
+    return ws
 
-    # Обновляем заголовки таблицы
+
+def create_spreadsheet_header(ws: pygsheets.Worksheet) -> pygsheets.Worksheet:
+    """
+    Создаёт заголовок таблицы
+    """
     headers = [
         'Тикер', 'Название', 'Номинал', 'Цена', 'НКД', 'Комиссия', 'Дата оферты', 'Дата погашения', 'Доход, %/год', \
         'Доход после налога, %/год', 'Только для квалов', 'Доход после налога, %/год (число)'
     ]
     ws.update_values('A1', [headers])
     
-    # Делаем заголовки жирными
-    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1']:
+    # Делаем заголовки жирными и устанавливаем задний фон
+    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1']:
+        ws.cell(cell).wrap_strategy = "WRAP"
         ws.cell(cell).set_text_format('bold', True)
+        ws.cell(cell).color = (0.9, 0.9, 0.9)
+
+    # Закрепляем строку заголовков
+    ws.frozen_rows = 1
 
     return ws
 
@@ -158,6 +168,9 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
 def main():
     # Авторизация в Google Sheets и открытие таблицы
     ws = authorize_google_sheets(CREDENTIALS_FILE, SPREADSHEET_URL)
+
+    # Создание заголовка таблицы
+    create_spreadsheet_header(ws)
 
     # Инициализируем клиента Tinkoff Invest API
     with Client(TOKEN) as client:
