@@ -20,14 +20,13 @@ def authorize_google_sheets(credentials_file: str, spreadsheet_url: str) -> pygs
 
     # Обновляем заголовки таблицы
     headers = [
-        'Тикер', 'Название', 'Номинал', 'Цена', 'НКД', 'Комиссия', 'Сумма купонов', 'Дата оферты', 'Дата погашения', \
-        'Доход, руб', 'Доход, %', 'Доход, %/год', 'Доход после налога, руб', 'Доход после налога, %', \
-        'Доход после налога, %/год', 'Только для квалов'
+        'Тикер', 'Название', 'Номинал', 'Цена', 'НКД', 'Комиссия', 'Дата оферты', 'Дата погашения', 'Доход, %/год', \
+        'Доход после налога, %/год', 'Только для квалов', 'Доход после налога, %/год (число)'
     ]
     ws.update_values('A1', [headers])
     
     # Делаем заголовки жирными
-    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1', 'M1', 'N1', 'O1', 'P1']:
+    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1', 'L1']:
         ws.cell(cell).set_text_format('bold', True)
 
     return ws
@@ -40,20 +39,19 @@ def update_spreadsheet_values(data: list, ws: pygsheets.Worksheet, row_index: in
     values = [
         [
             entry['ticker'], entry['name'], entry['nominal'], entry['price'], entry['aci'], entry['fee'], \
-            entry['sum_coupons'], entry['offerdate'], entry['maturity_date'], entry['profit_rub'], entry['profit_per'], \
-            entry['profit_per_year'], entry['profit_rub_after_tax'], entry['profit_per_after_tax'], \
-            entry['profit_per_year_after_tax'], entry['qual']
+            entry['offerdate'], entry['maturity_date'], entry['profit_per_year'], entry['profit_per_year_after_tax'], \
+            entry['qual'], entry['profit_per_year_after_tax_numeric']
         ] for entry in data]
     
-    ws.update_values(f'A{row_index+2}', values=values)
+    ws.update_values(f'A{row_index + 2}', values=values)
 
 
 def get_bond_data(client: Client, bond: Bond) -> dict:
     """
     Получает данные об облигации
     """
-    # Берём только рублёвые и не бессрочные облигации, и не флоатеры
-    if bond.currency != 'rub' or bond.perpetual_flag or bond.floating_coupon_flag:
+    # Берём только рублёвые и не бессрочные облигации
+    if bond.currency != 'rub' or bond.perpetual_flag:
         return None
 
     # Если срок погашения истёк, но облигация ещё есть в БД, то не берём её
@@ -131,8 +129,9 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
     # Доходность в процентах после налога
     profit_per_after_tax = format((0.87 * (profit_rub / (price + aci + fee))), '.2%')
 
-    # Доходность в процентах годовых после налога
+    # Доходность в процентах (и числовом значении для сортировки) годовых после налога
     profit_per_year_after_tax = format((0.87 * (profit_rub / (price + aci + fee) / days_left * 365)), '.2%')
+    profit_per_year_after_tax_numeric = 0.87 * (profit_rub / (price + aci + fee) / days_left * 365)
 
     # Доступность только квалифицированным инвесторам
     qual = 'Да' if bond.for_qual_investor_flag else 'Нет'
@@ -145,15 +144,11 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
         'price': price,
         'aci': aci,
         'fee': fee,
-        'sum_coupons': sum_coupons,
         'offerdate': offerdate,
         'maturity_date': bond.maturity_date.strftime('%d.%m.%Y'),   # Дата погашения
-        'profit_rub': profit_rub,
-        'profit_per': profit_per,
         'profit_per_year': profit_per_year,
-        'profit_rub_after_tax': profit_rub_after_tax,
-        'profit_per_after_tax': profit_per_after_tax,
         'profit_per_year_after_tax': profit_per_year_after_tax,
+        'profit_per_year_after_tax_numeric': profit_per_year_after_tax_numeric,
         'qual': qual
     }
 
@@ -179,6 +174,13 @@ def main():
             if bond_data:
                 update_spreadsheet_values([bond_data], ws, row_index)
                 row_index += 1
+
+        # Сортируем таблицу после заполнения
+        ws.sort_range('A2', f'L{row_index + 2}', basecolumnindex=11, sortorder='DESCENDING')
+
+        # Удаление данных из столбца L (столбец нужен был только для сортировки)
+        cell_list = ws.get_col(12, include_tailing_empty=False)  # Получаем список ячеек в столбце L
+        ws.update_col(12, [''] * len(cell_list))  # Обновляем значения ячеек на пустые строки
 
 
 if __name__ == "__main__":
