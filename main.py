@@ -94,13 +94,13 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
                 offerdate = row[columns.index("OFFERDATE")]
             break
         except requests.exceptions.Timeout:
-            print(f"Attempt {attempt + 1} failed due to timeout.")
+            print(f"Попытка {attempt + 1} завершилась неудачей из-за тайм-аута.")
         except requests.exceptions.ConnectionError as ce:
-            print(f"Attempt {attempt + 1} failed due to connection error: {ce}")
+            print(f"Попытка {attempt + 1} завершилась неудачей из-за ошибки подключения: {ce}")
         except requests.exceptions.RequestException as e:
-            print(f"Attempt {attempt + 1} failed with error: {e}")
+            print(f"Попытка {attempt + 1} завершилась ошибкой: {e}")
         if attempt < max_retries - 1:
-            print("Retrying...")
+            print("Повторяем попытку...")
             time.sleep(2)
 
     # Получаем купоны для облигации
@@ -131,6 +131,8 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
         offerdate = offerdate.strftime('%d.%m.%Y')
     else:
         days_left = (bond.maturity_date - datetime.datetime.now(datetime.timezone.utc)).days    # Дней до погашения
+    if days_left == 0:  # Отсекаем облигации с погашением сегодня
+        return None
     profit_per_year = format((profit_rub / (price + aci + fee) / days_left * 365), '.2%')
 
     # Доходность в рублях после налога
