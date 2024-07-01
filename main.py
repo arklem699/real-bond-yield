@@ -30,14 +30,46 @@ def create_spreadsheet_header(ws: pygsheets.Worksheet) -> pygsheets.Worksheet:
     ]
     ws.update_values('A1', [headers])
     
-    # Делаем заголовки жирными и устанавливаем задний фон
-    for cell in ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1']:
-        ws.cell(cell).wrap_strategy = "WRAP"
-        ws.cell(cell).set_text_format('bold', True)
-        ws.cell(cell).color = (0.9, 0.9, 0.9)
+    # Список ячеек для изменения
+    cells = ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1', 'I1', 'J1', 'K1']
 
-    # Закрепляем строку заголовков
-    ws.frozen_rows = 1
+    # Задаем свойства для каждой ячейки
+    for cell in cells:
+        cell_object = ws.cell(cell)
+        
+        cell_object.set_horizontal_alignment(pygsheets.custom_types.HorizontalAlignment.CENTER)     # Выравнивание
+        cell_object.set_vertical_alignment(pygsheets.custom_types.VerticalAlignment.MIDDLE)
+        
+        cell_object.wrap_strategy = "WRAP"      # Перенос текста
+        cell_object.set_text_format('fontSize', 12).set_text_format('bold', True)
+        cell_object.color = (0.9, 0.9, 0.9)
+
+    ws.adjust_column_width(10, 10, 150)     # Устанавливаем ширину колонки J
+    ws.frozen_rows = 1                      # Закрепляем строку 1
+
+    # Название и текущая дата
+    title = "Топ облигаций по реальной доходности"
+    current_date = str(datetime.datetime.now().strftime('%d.%m.%Y'))
+    
+    # Объединяем ячейки
+    ws.merge_cells('A2', 'H2')
+    ws.merge_cells('I2', 'K2')
+
+    ws.update_values('A2:H2', [[title]])
+    ws.update_values('I2:K2', [[current_date]])
+
+    cell_title = ws.cell('A2')
+    cell_date = ws.cell('I2')
+    
+    cell_title.set_text_format('bold', True).set_text_format('fontSize', 24)
+    cell_date.set_text_format('bold', True).set_text_format('fontSize', 24)
+    cell_title.color = (0.6, 0.8, 1)
+    cell_date.color = (0.4, 0.6, 0.8)
+
+    cell_title.set_horizontal_alignment(pygsheets.custom_types.HorizontalAlignment.CENTER)
+    cell_title.set_vertical_alignment(pygsheets.custom_types.VerticalAlignment.MIDDLE)
+    cell_date.set_horizontal_alignment(pygsheets.custom_types.HorizontalAlignment.CENTER)
+    cell_date.set_vertical_alignment(pygsheets.custom_types.VerticalAlignment.MIDDLE)
 
     return ws
 
@@ -53,7 +85,7 @@ def update_spreadsheet_values(data: list, ws: pygsheets.Worksheet, row_index: in
             entry['qual'], entry['profit_per_year_after_tax_numeric']
         ] for entry in data]
     
-    ws.update_values(f'A{row_index + 2}', values=values)
+    ws.update_values(f'A{row_index + 3}', values=values)
 
 
 def get_bond_data(client: Client, bond: Bond) -> dict:
