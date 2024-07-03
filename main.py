@@ -43,6 +43,7 @@ def create_spreadsheet_header(ws: pygsheets.Worksheet) -> pygsheets.Worksheet:
         cell_object.wrap_strategy = "WRAP"      # Перенос текста
         cell_object.set_text_format('fontSize', 12).set_text_format('bold', True)
         cell_object.color = (0.9, 0.9, 0.9)
+        print(cell)
 
     ws.adjust_column_width(10, 10, 150)     # Устанавливаем ширину колонки J
     ws.frozen_rows = 1                      # Закрепляем строку 1
@@ -78,6 +79,7 @@ def update_spreadsheet_values(data: list, ws: pygsheets.Worksheet, row_index: in
     """
     Обновляет значения в Google-таблице
     """
+    row = row_index + 3
     values = [
         [
             entry['ticker'], entry['name'], entry['nominal'], entry['price'], entry['aci'], entry['fee'], \
@@ -85,7 +87,7 @@ def update_spreadsheet_values(data: list, ws: pygsheets.Worksheet, row_index: in
             entry['qual'], entry['profit_per_year_after_tax_numeric']
         ] for entry in data]
     
-    ws.update_values(f'A{row_index + 3}', values=values)
+    ws.update_values(f'A{row}', values=values)
 
 
 def get_bond_data(client: Client, bond: Bond) -> dict:
@@ -136,11 +138,14 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
             time.sleep(2)
 
     # Получаем купоны для облигации
+    current_date = datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     if offerdate:
         offerdate = datetime.datetime.strptime(offerdate, "%Y-%m-%d").replace(tzinfo=datetime.timezone.utc)
-        coupons = client.instruments.get_bond_coupons(figi=bond.figi, from_=datetime.datetime.now(), to=offerdate).events
+        print(current_date, offerdate)
+        coupons = client.instruments.get_bond_coupons(figi=bond.figi, from_=current_date, to=offerdate).events
     else:
-        coupons = client.instruments.get_bond_coupons(figi=bond.figi, from_=datetime.datetime.now(), to=bond.maturity_date).events
+        print(current_date, bond.maturity_date)
+        coupons = client.instruments.get_bond_coupons(figi=bond.figi, from_=current_date, to=bond.maturity_date).events
 
     # Считаем сумму купонов
     sum_coupons = 0
