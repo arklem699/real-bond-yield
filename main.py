@@ -115,7 +115,7 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
     aci = bond.aci_value.units + int(str(bond.aci_value.nano)[:2]) / 100 
 
     # Комиссия 0,3%   
-    fee = round(((price + aci) * 0.003), 2)                                       
+    fee = round(price * 0.003, 2)                                       
 
     # Получаем дату оферты (если есть)
     max_retries = 3
