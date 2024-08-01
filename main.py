@@ -89,6 +89,21 @@ def update_spreadsheet_values(data: list, ws: pygsheets.Worksheet, row_index: in
     
     ws.update_values(f'A{row}', values=values)
 
+    # # Список ячеек для изменения
+    # cells = [f'C{row}', f'D{row}', f'E{row}', f'F{row}', f'G{row}', f'H{row}', f'I{row}', f'J{row}', f'K{row}']
+
+    # for cell in cells:
+    #     cell_object = ws.cell(cell)       
+    #     cell_object.set_horizontal_alignment(pygsheets.custom_types.HorizontalAlignment.CENTER)
+
+    # # Список ячеек для изменения
+    # cells = [f'C{row}', f'D{row}', f'E{row}', f'F{row}']
+
+    # for cell in cells:
+    #     cell_object = ws.cell(cell)
+    #     cell_object.set_number_format(format_type=pygsheets.FormatType.CURRENCY, pattern='#,###.00[$ ₽]')
+    #     print(cell_object)
+
 
 def get_bond_data(client: Client, bond: Bond) -> dict:
     """
@@ -118,6 +133,7 @@ def get_bond_data(client: Client, bond: Bond) -> dict:
     fee = round(price * 0.003, 2)                                       
 
     # Получаем дату оферты (если есть)
+    offerdate = None
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -228,7 +244,7 @@ def main():
                 row_index += 1
 
         # Сортируем таблицу после заполнения
-        ws.sort_range('A2', f'L{row_index + 2}', basecolumnindex=11, sortorder='DESCENDING')
+        ws.sort_range('A3', f'L{row_index + 3}', basecolumnindex=11, sortorder='DESCENDING')
 
         # Удаление данных из столбца L (столбец нужен был только для сортировки)
         cell_list = ws.get_col(12, include_tailing_empty=False)  # Получаем список ячеек в столбце L
